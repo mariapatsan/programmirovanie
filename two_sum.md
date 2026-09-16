@@ -30,7 +30,4 @@ def two_sum_hashed(lst, target):
 
 print(two_sum_hashed(lst, target))
 ```
-### Усложнение 2
-``` python
 
-```
