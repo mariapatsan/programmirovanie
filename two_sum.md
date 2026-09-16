@@ -11,6 +11,7 @@ def two_sum(lst, target):
                 if lst[i] + lst[j] == target:
                  return(i, j)
     return ()
+
 print(two_sum(lst, target))
 ```
 ### Усложнение 1
