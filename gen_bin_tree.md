@@ -29,18 +29,26 @@ print(g_b_t(2, 9))
 
 Тест:
 ``` python
+import unittest
+
 from gen_bin_tree import g_b_t
 
-assert g_b_t(0, 9) == {9: []}
-assert g_b_t(1, 9) == {
-    9: 
-    [{19: []}, 
-     {17: []}] }
-assert g_b_t(2, 9) == {
-    9: 
-    [{19: [{39: []}, {37: []}]},
-    {17: [{35: []}, {33: []}]}, ]}
-assert g_b_t(-1, 9) is None
 
-print("Все тесты прошли")
+class test_gbt(unittest.TestCase):
+
+    def test_height_0(self):
+        self.assertEqual(g_b_t(0, 9), {9: []})
+
+    def test_height_1(self):
+        self.assertEqual(g_b_t(1, 9), {9: [{19: []}, {17: []}]})
+
+    def test_height_2(self):
+        self.assertEqual(g_b_t(2, 9), {
+            9: [{19: [{39: []}, {37: []}]}, {17: [{35: []}, {33: []}]},]})
+
+    def test_2(self):
+        self.assertIsNone(g_b_t(-1, 9))
+
+if __name__ == "__main__":
+    unittest.main()
 ```
