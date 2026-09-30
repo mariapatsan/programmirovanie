@@ -15,7 +15,7 @@ def gen_bin_tree(height: int = 6, root: int = 9) -> dict:
     tree = {root: []}
     current_level = [(root, tree)]
 
-    for _ in range(height):          # ← ВОТ ТУТ: range(height), не height - 1
+    for _ in range(height):         
         next_level = []
 
         for value, node in current_level:
