@@ -8,10 +8,12 @@ main.py:
 
 ```python
 import configparser
+import math
+import os
 
 
 def calculate(number1, number2, epsilon=0.0001):
-    """Выполняет деление двух чисел."""
+    """Делит number1 на number2 с точностью epsilon."""
     if number2 == 0:
         raise ZeroDivisionError("Нельзя делить на ноль")
 
@@ -19,15 +21,25 @@ def calculate(number1, number2, epsilon=0.0001):
         raise ValueError("Значение epsilon находится вне диапазона")
 
     answer = number1 / number2
-    return round(answer, 10)
+    decimal_places = max(0, -int(math.floor(math.log10(epsilon))))
+    return round(answer, decimal_places)
 
 
 def load_params(filename="settings.ini"):
     """Загружает epsilon из конфигурационного файла."""
+    if not os.path.exists(filename):
+        raise FileNotFoundError(f"Файл не найден: {filename}")
+
     settings = configparser.ConfigParser()
     settings.read(filename)
 
-    epsilon = float(settings["settings"]["epsilon"])
+    if not settings.has_section("settings") or not settings.has_option("settings", "epsilon"):
+        raise ValueError("В файле нет секции [settings] или параметра epsilon")
+
+    try:
+        epsilon = float(settings["settings"]["epsilon"])
+    except ValueError:
+        raise ValueError("epsilon в файле не является числом")
 
     if not 10**-9 <= epsilon <= 10**-1:
         raise ValueError("Значение epsilon находится вне диапазона")
@@ -35,8 +47,9 @@ def load_params(filename="settings.ini"):
     return epsilon
 
 
-epsilon = load_params()
-print(calculate(1, 2, epsilon=epsilon))
+if __name__ == "__main__":
+    epsilon = load_params()
+    print(calculate(1, 2, epsilon=epsilon))
 ```
 ## Конфигурационный файл
 
