@@ -3,8 +3,7 @@
 Выполнила: Пацан Мария, 2ПОО
 
 calculate:
-```
-python
+``` python
 """Модуль деления с настраиваемой точностью и логированием.
 
 Логирование ведётся через именованный логгер 'calculate'.
@@ -108,15 +107,13 @@ def load_params(
 ```
 
 settings.ini:
-```
-python
+``` python
 [settings]
 epsilon = 0.001
 ```
 
 test:
-```
-python
+``` python
 import logging
 import os
 import tempfile
