@@ -1,6 +1,7 @@
 """Консольный интерфейс трекера курсов валют."""
 import sys
 
+from app.providers import CbrJsonProvider, CbrXmlProvider, RateProvider, StaticRateProvider
 from app.exceptions import AppError, ProviderError
 from app.providers import CbrXmlProvider, RateProvider, StaticRateProvider
 from app.services import CurrencyTracker
@@ -19,6 +20,8 @@ MENU = """
 def choose_provider() -> RateProvider:
     if "--offline" in sys.argv:
         return StaticRateProvider.demo()
+    if "--json" in sys.argv:
+        return CbrJsonProvider()
     return CbrXmlProvider()
 
 
@@ -51,7 +54,8 @@ def main() -> None:
                 tracker.unsubscribe(ask_user_id(), input("Код валюты: "))
                 print("Подписка отменена")
             elif choice == "5":
-                for rate in tracker.get_user_rates(ask_user_id()):
+                rates = tracker.get_user_rates(ask_user_id())
+                for rate in sorted(rates, reverse=True):    # дорогие сначала
                     print(rate)
             elif choice == "6":
                 code = input("Код валюты: ")
