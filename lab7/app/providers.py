@@ -38,17 +38,24 @@ class CbrXmlProvider(RateProvider):
     def __init__(self, url: str | None = None, timeout: float | None = None) -> None:
         self._url = url or self.URL
         self._timeout = timeout or self.TIMEOUT
+        self._skipped_count = 0
+
+    @property
+    def skipped_count(self) -> int:
+        """Сколько повреждённых записей пропущено при последнем разборе."""
+        return self._skipped_count
 
     def get_rates(self) -> dict[str, Rate]:
         try:
             response = requests.get(self._url, headers=self.HEADERS, timeout=self._timeout)
             response.raise_for_status()
+        except requests.Timeout as exc:
+            raise ProviderError(f"Сервер ЦБ РФ не ответил за {self._timeout} секунд") from exc
         except requests.RequestException as exc:
             raise ProviderError(f"Не удалось получить данные ЦБ РФ: {exc}") from exc
         return self.parse(response.content)
 
-    @staticmethod
-    def parse(xml_data: bytes) -> dict[str, Rate]:
+    def parse(self, xml_data: bytes) -> dict[str, Rate]:
         try:
             root = ET.fromstring(xml_data)
             on_date = datetime.strptime(root.attrib["Date"], "%d.%m.%Y").date()
@@ -56,8 +63,8 @@ class CbrXmlProvider(RateProvider):
             raise ProviderError(f"Некорректный ответ ЦБ РФ: {exc}") from exc
 
         rates: dict[str, Rate] = {}
+        self._skipped_count = 0
         
-        # Вот этот цикл у вас потерялся!
         for valute in root.findall("Valute"):
             try:
                 code = valute.findtext("CharCode", "").strip()
@@ -67,6 +74,7 @@ class CbrXmlProvider(RateProvider):
                 value = Decimal(valute.findtext("Value", "0").replace(",", "."))
                 rates[code] = Rate(code, name, nominal, value, on_date, num_code)
             except (ValueError, InvalidOperation):
+                self._skipped_count += 1
                 continue
                 
         return rates

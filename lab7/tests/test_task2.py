@@ -27,9 +27,6 @@ def test_parse_num_code():
     <Valute><NumCode>840</NumCode><CharCode>USD</CharCode><Nominal>1</Nominal>
     <Name>Доллар США</Name><Value>80,5</Value></Valute>
     </ValCurs>"""
-    # Кодируем строку в байты, чтобы передать в парсер
     xml = xml_str.encode("windows-1251")
-    
-    rates = CbrXmlProvider.parse(xml)
+    rates = CbrXmlProvider().parse(xml)  # <- добавили ()
     assert rates["USD"].num_code == "840"
-    
