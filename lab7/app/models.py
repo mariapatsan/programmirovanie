@@ -4,12 +4,14 @@ from __future__ import annotations
 import re
 from datetime import date, datetime
 from decimal import Decimal
+from functools import total_ordering
 
 from app.exceptions import ValidationError
 
 
 class BaseEntity:
     """Базовый класс сущности."""
+
     _id_counter: int = 0
 
     def __init__(self) -> None:
@@ -145,10 +147,12 @@ class Currency(BaseEntity):
 
     CODE_LENGTH = 3
 
-    def __init__(self, code: str, name: str) -> None:
+    def __init__(self, code: str, name: str, num_code: str | None = None) -> None:
         super().__init__()
+        self._num_code: str | None = None
         self.code = code
         self.name = name
+        self.num_code = num_code
 
     @property
     def code(self) -> str:
@@ -173,9 +177,25 @@ class Currency(BaseEntity):
             raise ValidationError("Название валюты не может быть пустым")
         self._name = value.strip()
 
+    @property
+    def num_code(self) -> str | None:
+        return self._num_code
+
+    @num_code.setter
+    def num_code(self, value: str | None) -> None:
+        if value is None:
+            self._num_code = None
+            return
+        if not isinstance(value, str):
+            raise ValidationError("num_code должен быть строкой или None")
+        value = value.strip()
+        if len(value) != 3 or not value.isdigit():
+            raise ValidationError(f"num_code — ровно 3 цифры: {value!r}")
+        self._num_code = value
+
     def to_dict(self) -> dict:
         data = super().to_dict()
-        data.update(code=self.code, name=self.name)
+        data.update(code=self.code, name=self.name, num_code=self.num_code)
         return data
 
     def __str__(self) -> str:
@@ -221,10 +241,11 @@ class Subscription:
         return f"Subscription(user_id={self.user.id}, currency_id={self.currency.id})"
 
 
+@total_ordering
 class Rate:
     """Курс валюты на дату."""
 
-    def __init__(self, code: str, name: str, nominal: int, value: Decimal, on_date: date) -> None:
+    def __init__(self, code: str, name: str, nominal: int, value: Decimal, on_date: date, num_code: str | None = None) -> None:
         if nominal <= 0:
             raise ValidationError("Номинал должен быть положительным")
         if value <= 0:
@@ -234,10 +255,16 @@ class Rate:
         self.nominal = nominal
         self.value = Decimal(value)
         self.date = on_date
+        self.num_code = num_code
 
     @property
     def per_unit(self) -> Decimal:
         return self.value / self.nominal
+
+    def __lt__(self, other: object) -> bool:
+        if not isinstance(other, Rate):
+            return NotImplemented
+        return self.per_unit < other.per_unit
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Rate):

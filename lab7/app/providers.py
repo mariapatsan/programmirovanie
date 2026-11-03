@@ -56,15 +56,19 @@ class CbrXmlProvider(RateProvider):
             raise ProviderError(f"Некорректный ответ ЦБ РФ: {exc}") from exc
 
         rates: dict[str, Rate] = {}
+        
+        # Вот этот цикл у вас потерялся!
         for valute in root.findall("Valute"):
             try:
                 code = valute.findtext("CharCode", "").strip()
                 name = valute.findtext("Name", "").strip()
+                num_code = valute.findtext("NumCode", "").strip() or None
                 nominal = int(valute.findtext("Nominal", "0"))
                 value = Decimal(valute.findtext("Value", "0").replace(",", "."))
-                rates[code] = Rate(code, name, nominal, value, on_date)
+                rates[code] = Rate(code, name, nominal, value, on_date, num_code)
             except (ValueError, InvalidOperation):
                 continue
+                
         return rates
 
 
