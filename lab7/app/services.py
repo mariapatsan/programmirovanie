@@ -1,6 +1,9 @@
 """Сервисный слой: регистрация пользователей и управление подписками."""
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 from app.exceptions import DuplicateError, InactiveUserError, NotFoundError
 from app.models import Currency, Rate, Subscription, User
 from app.providers import RateProvider
@@ -15,8 +18,9 @@ class CurrencyTracker:
         self._currencies: dict[str, Currency] = {}
         self._subscriptions: set[Subscription] = set()
 
-    def register_user(self, username: str, email: str) -> User:
-        user = User(username, email)
+    # ---------- пользователи ----------
+    def register_user(self, username: str, email: str, full_name: str | None = None) -> User:
+        user = User(username, email, full_name)
         for existing in self._users.values():
             if existing.username.lower() == user.username.lower():
                 raise DuplicateError(f"Имя {user.username!r} уже занято")
@@ -35,6 +39,7 @@ class CurrencyTracker:
     def users(self) -> list[User]:
         return list(self._users.values())
 
+    # ---------- валюты ----------
     def sync_currencies(self) -> int:
         added = 0
         for code, rate in self._provider.get_rates().items():
@@ -56,6 +61,7 @@ class CurrencyTracker:
     def currencies(self) -> list[Currency]:
         return sorted(self._currencies.values(), key=lambda c: c.code)
 
+    # ---------- подписки ----------
     def subscribe(self, user_id: int, code: str) -> Subscription:
         user = self.get_user(user_id)
         if not user.is_active:
@@ -84,3 +90,42 @@ class CurrencyTracker:
     def get_user_rates(self, user_id: int) -> list[Rate]:
         rates = self._provider.get_rates()
         return [rates[c.code] for c in self.get_user_currencies(user_id) if c.code in rates]
+
+    # ---------- сохранение в JSON ----------
+    def save(self, path: str) -> None:
+        """Сохранить состояние трекера в JSON."""
+        data = {
+            "users": [u.to_dict() for u in self._users.values()],
+            "currencies": [c.to_dict() for c in self._currencies.values()],
+            "subscriptions": [
+                {"user_id": s.user.id, "currency_id": s.currency.id}
+                for s in self._subscriptions
+            ],
+        }
+        Path(path).write_text(json.dumps(data, ensure_ascii=False, indent=2))
+
+    def load(self, path: str) -> None:
+        """Загрузить состояние из JSON (упрощённо)."""
+        data = json.loads(Path(path).read_text())
+        self._users.clear()
+        self._currencies.clear()
+        self._subscriptions.clear()
+
+        user_map = {}
+        for u in data["users"]:
+            user = User(u["username"], u["email"], full_name=u.get("full_name"))
+            if not u.get("is_active", True):
+                user.deactivate()
+            self._users[user.id] = user
+            user_map[u["id"]] = user  # <-- сопоставляем старый id с новым объектом
+
+        currency_map = {}
+        for c in data["currencies"]:
+            currency = Currency(c["code"], c["name"], num_code=c.get("num_code"))
+            self._currencies[currency.code] = currency
+            currency_map[c["id"]] = currency  # <-- сопоставляем старый id валюты
+
+        for s in data["subscriptions"]:
+            user = user_map[s["user_id"]]
+            currency = currency_map[s["currency_id"]]
+            self._subscriptions.add(Subscription(user, currency))
