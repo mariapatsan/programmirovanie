@@ -9,8 +9,7 @@ from app.exceptions import ValidationError
 
 
 class BaseEntity:
-    """Базовый класс сущности, которая хранится в БД и имеет id."""
-
+    """Базовый класс сущности."""
     _id_counter: int = 0
 
     def __init__(self) -> None:
@@ -56,11 +55,17 @@ class User(BaseEntity):
     USERNAME_MAX_LENGTH = 32
     _USERNAME_PATTERN = re.compile(r"^[A-Za-z0-9_]+$")
     _EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+    _FULL_NAME_PATTERN = re.compile(r"^[A-Za-zА-Яа-яЁё\s\-]+$")
+    FULL_NAME_MIN_LENGTH = 2
+    FULL_NAME_MAX_LENGTH = 100
 
-    def __init__(self, username: str, email: str) -> None:
+    def __init__(self, username: str, email: str, full_name: str | None = None) -> None:
         super().__init__()
+        self._full_name: str | None = None
+        self.__is_active: bool = True
         self.username = username
         self.email = email
+        self.full_name = full_name
 
     @property
     def username(self) -> str:
@@ -72,10 +77,7 @@ class User(BaseEntity):
             raise ValidationError("username должен быть строкой")
         value = value.strip()
         if not self.USERNAME_MIN_LENGTH <= len(value) <= self.USERNAME_MAX_LENGTH:
-            raise ValidationError(
-                f"Длина username: от {self.USERNAME_MIN_LENGTH} "
-                f"до {self.USERNAME_MAX_LENGTH} символов"
-            )
+            raise ValidationError("Некорректная длина username")
         if not self._USERNAME_PATTERN.match(value):
             raise ValidationError("username: только латиница, цифры и _")
         self._username = value
@@ -93,9 +95,42 @@ class User(BaseEntity):
             raise ValidationError(f"Некорректный email: {value!r}")
         self._email = value
 
+    @property
+    def full_name(self) -> str | None:
+        return self._full_name
+
+    @full_name.setter
+    def full_name(self, value: str | None) -> None:
+        if value is None:
+            self._full_name = None
+            return
+        if not isinstance(value, str):
+            raise ValidationError("full_name должен быть строкой или None")
+        value = value.strip()
+        if not self.FULL_NAME_MIN_LENGTH <= len(value) <= self.FULL_NAME_MAX_LENGTH:
+            raise ValidationError("Некорректная длина full_name")
+        if not self._FULL_NAME_PATTERN.match(value):
+            raise ValidationError("full_name: только буквы, пробелы и дефис")
+        self._full_name = value
+
+    @property
+    def is_active(self) -> bool:
+        return self.__is_active
+
+    def deactivate(self) -> None:
+        self.__is_active = False
+
+    def activate(self) -> None:
+        self.__is_active = True
+
     def to_dict(self) -> dict:
         data = super().to_dict()
-        data.update(username=self.username, email=self.email)
+        data.update(
+            username=self.username,
+            email=self.email,
+            full_name=self.full_name,
+            is_active=self.is_active,
+        )
         return data
 
     def __str__(self) -> str:
@@ -125,7 +160,7 @@ class Currency(BaseEntity):
             raise ValidationError("Код валюты должен быть строкой")
         value = value.strip().upper()
         if len(value) != self.CODE_LENGTH or not (value.isascii() and value.isalpha()):
-            raise ValidationError(f"Код валюты — {self.CODE_LENGTH} латинские буквы: {value!r}")
+            raise ValidationError(f"Код валюты — {self.CODE_LENGTH} латинские буквы")
         self._code = value
 
     @property
@@ -151,7 +186,7 @@ class Currency(BaseEntity):
 
 
 class Subscription:
-    """Подписка пользователя на валюту (связь многие-ко-многим)."""
+    """Подписка пользователя на валюту."""
 
     def __init__(self, user: User, currency: Currency) -> None:
         if not isinstance(user, User):
@@ -187,10 +222,9 @@ class Subscription:
 
 
 class Rate:
-    """Курс валюты на дату. Не хранится в БД."""
+    """Курс валюты на дату."""
 
-    def __init__(self, code: str, name: str, nominal: int,
-                 value: Decimal, on_date: date) -> None:
+    def __init__(self, code: str, name: str, nominal: int, value: Decimal, on_date: date) -> None:
         if nominal <= 0:
             raise ValidationError("Номинал должен быть положительным")
         if value <= 0:
@@ -208,8 +242,7 @@ class Rate:
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Rate):
             return NotImplemented
-        return (self.code, self.nominal, self.value, self.date) == (
-            other.code, other.nominal, other.value, other.date)
+        return (self.code, self.nominal, self.value, self.date) == (other.code, other.nominal, other.value, other.date)
 
     def __hash__(self) -> int:
         return hash((self.code, self.nominal, self.value, self.date))

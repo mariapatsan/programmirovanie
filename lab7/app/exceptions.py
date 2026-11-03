@@ -19,3 +19,7 @@ class NotFoundError(AppError):
 
 class ProviderError(AppError):
     """Ошибка получения или разбора курсов."""
+
+
+class InactiveUserError(AppError):
+    """Попытка действия от имени деактивированного пользователя."""
